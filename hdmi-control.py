@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+"""Show either a solid color on framebufer or reset to text mode."""
 import argparse
 import fcntl
 import os
@@ -8,12 +10,8 @@ KD_TEXT = 0x00
 KD_GRAPHICS = 0x01
 FBIOGET_VSCREENINFO = 0x4600
 
-# colors defined in BGRA (right to left) format
-_colors_32 = {"red": 0xFFFF0000, "green": 0xFF00FF00, "blue": 0xFF0000FF}
-# colors for 16-bit depth (RGB565)
-_colors_16 = {"red": 0xF800, "green": 0x07E0, "blue": 0x001F}
-
-assert _colors_16.keys() == _colors_32.keys()
+# list of supported colors in RGBA
+colors = {"red": (255, 0, 0, 255), "green": (0, 255, 00, 255), "blue": (0, 0, 255, 255)}
 
 
 def tty_set_mode(tty_name: str, kd_mode: int) -> None:
@@ -34,30 +32,41 @@ def tty_graphics_mode(tty_name: str) -> None:
 
 def fill_framebuffer_with_color(color: str, framebuffer: int = 0) -> None:
     """Fill framebuffer with one color."""
-    fb = os.open(f"/dev/fb{framebuffer}", os.O_RDWR)
+    if color not in colors:
+        raise ValueError("Invalid color specified.")
 
-    # Get info about framebuffer (size, bpp, ...)
+    red, green, blue, alpha = colors.get(color)
+
+    fb = os.open(f"/dev/fb{framebuffer}", os.O_RDWR)
+    # Get info about framebuffer (size, bpp, color channels...)
+    fmt = "20I"
     screen_info = struct.unpack(
-        "8I", fcntl.ioctl(fb, FBIOGET_VSCREENINFO, b"\x00" * 32)
+        fmt, fcntl.ioctl(fb, FBIOGET_VSCREENINFO, b"\x00" * struct.calcsize(fmt))
     )
     screen_width, screen_height = screen_info[0], screen_info[1]
     bits_per_pixel = screen_info[6]
-    screen_size = screen_width * screen_height
+    offset_red, len_red = screen_info[8:10]
+    offset_green, len_green = screen_info[11:13]
+    offset_blue, len_blue = screen_info[14:16]
+    offset_alpha, len_alpha = screen_info[17:19]
+
+    # Calculate each channel's value according to length and offset
+    red = (red >> (8 - len_red)) << offset_red
+    green = (green >> (8 - len_green)) << offset_green
+    blue = (blue >> (8 - len_blue)) << offset_blue
+    alpha = (alpha >> (8 - len_alpha)) << offset_alpha
+
+    color_value = red + green + blue + alpha
 
     if bits_per_pixel == 32:
-        color_value = _colors_32.get(color, None)
-        pack_format = "I"  # 32-bit unsigned int
+        fmt = "I"
     elif bits_per_pixel == 16:
-        color_value = _colors_16.get(color, None)
-        pack_format = "H"  # 16-bit unsigned short
+        fmt = "H"
     else:
         raise ValueError(f"Unsupported bits per pixel: {bits_per_pixel}")
 
-    if color_value is None:
-        raise ValueError("Invalid color specified.")
-
     # Fill the framebuffer with the specified color
-    data = struct.pack(pack_format, color_value) * screen_size
+    data = struct.pack(fmt, color_value) * screen_width * screen_height
     os.write(fb, data)
 
     os.close(fb)
@@ -68,12 +77,10 @@ if __name__ == "__main__":
         print("insufficient permission: script needs root permissions.")
         exit(1)
 
-    known_colors = list(_colors_16.keys())
+    known_colors = list(colors.keys())
 
     parser = argparse.ArgumentParser()
-    parser.add_argument(
-        "--color", type=str, choices=known_colors, default=known_colors[0]
-    )
+    parser.add_argument("--color", type=str, choices=known_colors, default=known_colors[0])
     parser.add_argument("--mode", type=str, choices=["color", "tty"], required=True)
     parser.add_argument("--tty", type=str, required=False, default="/dev/tty0")
 
