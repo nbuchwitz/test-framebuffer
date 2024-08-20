@@ -10,8 +10,15 @@ KD_TEXT = 0x00
 KD_GRAPHICS = 0x01
 FBIOGET_VSCREENINFO = 0x4600
 
-# list of supported colors in RGBA
-colors = {"red": (255, 0, 0, 255), "green": (0, 255, 00, 255), "blue": (0, 0, 255, 255)}
+# list of supported colors as RGB values
+colors = {
+    "red": (255, 0, 0),
+    "green": (0, 255, 0),
+    "blue": (0, 0, 255),
+    "black": (0, 0, 0),
+    "white": (255, 255, 255),
+    "orange": (255, 102, 0),
+}
 
 
 def tty_set_mode(tty_name: str, kd_mode: int) -> None:
@@ -35,7 +42,11 @@ def fill_framebuffer_with_color(color: str, framebuffer: int = 0) -> None:
     if color not in colors:
         raise ValueError("Invalid color specified.")
 
-    red, green, blue, alpha = colors.get(color)
+    red, green, blue = colors.get(color)
+    # set alpha to max value as is only matters for RGBA anyway
+    alpha = 255
+
+    assert 0 <= red <= 255 and 0 <= green <= 255 and 0 <= blue <= 255
 
     fb = os.open(f"/dev/fb{framebuffer}", os.O_RDWR)
     # Get info about framebuffer (size, bpp, color channels...)
