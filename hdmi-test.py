@@ -21,7 +21,6 @@ logger = logging.getLogger()
 def get_primary_color(
     image: Image, *, threshold_primary_color: int, threshold_other_colors: int
 ) -> Optional[str]:
-
     # Convert the image to RGB mode
     img_rgb = image.convert("RGB")
 
@@ -88,9 +87,7 @@ if __name__ == "__main__":
     import argparse
 
     parser = argparse.ArgumentParser()
-    parser.add_argument(
-        "--color", type=str, choices=["red", "green", "blue"], required=True
-    )
+    parser.add_argument("--color", type=str, choices=["red", "green", "blue"], required=True)
     parser.add_argument("--device", type=str, required=True)
     parser.add_argument("--threshold-primary-color", type=int, default=230)
     parser.add_argument("--threshold-other-colors", type=int, default=50)
