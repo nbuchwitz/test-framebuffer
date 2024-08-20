@@ -64,8 +64,9 @@ def fill_framebuffer_with_color(color: str, framebuffer: int = 0) -> None:
 
     assert 0 <= red <= 255 and 0 <= green <= 255 and 0 <= blue <= 255
 
-    fb = os.open(f"/dev/fb{framebuffer}", os.O_RDWR)
+    fb = os.open(device, os.O_RDWR)
     # Get info about framebuffer (size, bpp, color channels...)
+    # See fb_var_screeninfo (linux/fb.h)
     fmt = "20I"
     screen_info = struct.unpack(
         fmt, fcntl.ioctl(fb, FBIOGET_VSCREENINFO, bytes(struct.calcsize(fmt)))
