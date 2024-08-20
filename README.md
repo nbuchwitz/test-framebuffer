@@ -1,4 +1,6 @@
-# HDMI Test
+# Framebuffer Test
+
+This repository provides a tool `fb-control.py` to fill the complete area of a given framebuffer with a solid color. If the framebuffer is attached to a video output (eg. HDMI or others) it can be then captured with `hdmi-test.py` and checked if the colors match.
 
 ## Install Dependencies on test PC
 
@@ -13,18 +15,18 @@ sudo apt install uvccapture python3-pil
 Set color on DUT:
 
 ```
-python3 hdmi-control.py --mode color --color red
+python3 fb-control.py --mode color --color red
 ```
 
 ```
-python3 hdmi-control.py --mode color --color green
+python3 fb-control.py --mode color --color green
 ```
 
 ```
-python3 hdmi-control.py --mode color --color blue
+python3 fb-control.py --mode color --color blue
 ```
 
-> **NOTE:** The terminal can be reset with the following command: `python3 hdmi-control.py --mode tty`
+> **NOTE:** The terminal can be reset with the following command: `python3 fb-control.py --mode tty`
 
 
 ### Test PC
