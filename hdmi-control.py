@@ -1,9 +1,12 @@
 #!/usr/bin/env python3
 """Show either a solid color on framebufer or reset to text mode."""
+
 import argparse
 import fcntl
 import os
+import stat
 import struct
+import sys
 
 KDSETMODE = 0x4B3A
 KD_TEXT = 0x00
@@ -37,10 +40,23 @@ def tty_graphics_mode(tty_name: str) -> None:
     tty_set_mode(tty_name, KD_GRAPHICS)
 
 
+def is_char_device(path: str) -> bool:
+    """Check if a given path is a character device."""
+    try:
+        st = os.stat(path)
+        return stat.S_ISCHR(st.st_mode)
+    except (FileNotFoundError, Exception):
+        return False
+
+
 def fill_framebuffer_with_color(color: str, framebuffer: int = 0) -> None:
     """Fill framebuffer with one color."""
     if color not in colors:
         raise ValueError("Invalid color specified.")
+
+    device = f"/dev/fb{framebuffer}"
+    if not is_char_device(device):
+        raise ValueError(f"Framebuffer '{device}' doesn't exist or not a character device")
 
     red, green, blue = colors.get(color)
     # set alpha to max value as is only matters for RGBA anyway
@@ -52,7 +68,7 @@ def fill_framebuffer_with_color(color: str, framebuffer: int = 0) -> None:
     # Get info about framebuffer (size, bpp, color channels...)
     fmt = "20I"
     screen_info = struct.unpack(
-        fmt, fcntl.ioctl(fb, FBIOGET_VSCREENINFO, b"\x00" * struct.calcsize(fmt))
+        fmt, fcntl.ioctl(fb, FBIOGET_VSCREENINFO, bytes(struct.calcsize(fmt)))
     )
     screen_width, screen_height = screen_info[0], screen_info[1]
     bits_per_pixel = screen_info[6]
@@ -91,14 +107,43 @@ if __name__ == "__main__":
     known_colors = list(colors.keys())
 
     parser = argparse.ArgumentParser()
-    parser.add_argument("--color", type=str, choices=known_colors, default=known_colors[0])
-    parser.add_argument("--mode", type=str, choices=["color", "tty"], required=True)
+    parser.add_argument("--color", type=str, choices=known_colors, help="Name of color")
+    parser.add_argument(
+        "--mode",
+        type=str,
+        choices=["color", "tty"],
+        default="color",
+        help="Operation mode (defaults to color)",
+    )
     parser.add_argument("--tty", type=str, required=False, default="/dev/tty0")
+    parser.add_argument(
+        "--fb",
+        type=int,
+        required=False,
+        default=0,
+        help="Framebuffer id (defaults to 0)",
+    )
 
     args = parser.parse_args()
 
-    if args.mode == "color" and args.color:
-        tty_graphics_mode(args.tty)
-        fill_framebuffer_with_color(args.color)
-    else:
-        tty_text_mode(args.tty)
+    if args.mode == "color" and not args.color:
+        print("Error: --color is required when --mode is set to 'color'.", file=sys.stderr)
+        parser.print_help()
+        sys.exit(1)
+    elif args.mode == "tty" and args.color:
+        print(
+            "Error: --color cannot be used when --mode is set to 'tty'.",
+            file=sys.stderr,
+        )
+        parser.print_help()
+        sys.exit(1)
+
+    try:
+        if args.mode == "color" and args.color:
+            tty_graphics_mode(args.tty)
+            fill_framebuffer_with_color(args.color, args.fb)
+        else:
+            tty_text_mode(args.tty)
+    except Exception as e:
+        print("Error:", str(e), file=sys.stderr)
+        exit(1)
