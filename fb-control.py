@@ -103,7 +103,7 @@ def fill_framebuffer_with_color(color: str, framebuffer: int = 0) -> None:
 if __name__ == "__main__":
     if os.geteuid() != 0:
         print("insufficient permission: script needs root permissions.")
-        exit(1)
+        sys.exit(1)
 
     known_colors = list(colors.keys())
 
@@ -147,4 +147,4 @@ if __name__ == "__main__":
             tty_text_mode(args.tty)
     except Exception as e:
         print("Error:", str(e), file=sys.stderr)
-        exit(1)
+        sys.exit(1)
