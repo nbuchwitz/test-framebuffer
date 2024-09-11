@@ -12,6 +12,7 @@ KDSETMODE = 0x4B3A
 KD_TEXT = 0x00
 KD_GRAPHICS = 0x01
 FBIOGET_VSCREENINFO = 0x4600
+FBIOPUT_VSCREENINFO = 0x4601
 
 # list of supported colors as RGB values
 colors = {
@@ -49,7 +50,35 @@ def is_char_device(path: str) -> bool:
         return False
 
 
-def fill_framebuffer_with_color(color: str, framebuffer: int = 0) -> None:
+def fb_set_resolution(xres: int, yres: int, framebuffer: int = 0) -> None:
+    """Set resolution for framebuffer.
+
+    Parameters
+    ----------
+    xres : int
+        Resolution on x axis
+    yres : int
+        Resolution on y axis
+    framebuffer : int, optional
+        Number of framebuffer device, by default 0
+
+    Raises
+    ------
+    ValueError
+        _description_
+    """
+    device = f"/dev/fb{framebuffer}"
+    if not is_char_device(device):
+        raise ValueError(f"Framebuffer '{device}' doesn't exist or not a character device")
+
+    fmt = "2I"
+    with open(device, "rb+") as fb:
+        fcntl.ioctl(fb, FBIOGET_VSCREENINFO, bytes(struct.calcsize(fmt)))
+        values = [xres, yres]
+        fcntl.ioctl(fb, FBIOPUT_VSCREENINFO, struct.pack(fmt, *values))
+
+
+def fb_fill_with_color(color: str, framebuffer: int = 0) -> None:
     """Fill framebuffer with one color."""
     if color not in colors:
         raise ValueError("Invalid color specified.")
@@ -142,7 +171,7 @@ if __name__ == "__main__":
     try:
         if args.mode == "color" and args.color:
             tty_graphics_mode(args.tty)
-            fill_framebuffer_with_color(args.color, args.fb)
+            fb_fill_with_color(args.color, args.fb)
         else:
             tty_text_mode(args.tty)
     except Exception as e:
