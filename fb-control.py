@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Show either a solid color on framebufer or reset to text mode."""
+"""Show either a solid color on framebuffer or reset to text mode."""
 
 import argparse
 import fcntl
@@ -65,7 +65,7 @@ def fb_set_resolution(xres: int, yres: int, framebuffer: int = 0) -> None:
     Raises
     ------
     ValueError
-        _description_
+        If the framebuffer doesn't exist or is not a character device.
     """
     device = f"/dev/fb{framebuffer}"
     if not is_char_device(device):
@@ -76,6 +76,38 @@ def fb_set_resolution(xres: int, yres: int, framebuffer: int = 0) -> None:
         fcntl.ioctl(fb, FBIOGET_VSCREENINFO, bytes(struct.calcsize(fmt)))
         values = [xres, yres]
         fcntl.ioctl(fb, FBIOPUT_VSCREENINFO, struct.pack(fmt, *values))
+
+
+def fb_get_info(framebuffer: int = 0) -> tuple:
+    """Get resolution and bits per pixel for framebuffer.
+
+    Parameters
+    ----------
+    framebuffer : int, optional
+        Number of framebuffer device, by default 0
+
+    Returns
+    -------
+    tuple
+        (width, height, bits_per_pixel)
+
+    Raises
+    ------
+    ValueError
+        If the framebuffer doesn't exist or is not a character device.
+    """
+    device = f"/dev/fb{framebuffer}"
+    if not is_char_device(device):
+        raise ValueError(f"Framebuffer '{device}' doesn't exist or not a character device")
+
+    fmt = "20I"
+    with open(device, "rb") as fb:
+        screen_info = struct.unpack(
+            fmt, fcntl.ioctl(fb, FBIOGET_VSCREENINFO, bytes(struct.calcsize(fmt)))
+        )
+        screen_width, screen_height = screen_info[0], screen_info[1]
+        bits_per_pixel = screen_info[6]
+        return screen_width, screen_height, bits_per_pixel
 
 
 def fb_fill_with_color(color: str, framebuffer: int = 0) -> None:
@@ -141,7 +173,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--mode",
         type=str,
-        choices=["color", "tty"],
+        choices=["color", "tty", "info"],
         default="color",
         help="Operation mode (defaults to color)",
     )
@@ -172,6 +204,9 @@ if __name__ == "__main__":
         if args.mode == "color" and args.color:
             tty_graphics_mode(args.tty)
             fb_fill_with_color(args.color, args.fb)
+        elif args.mode == "info":
+            width, height, bpp = fb_get_info(args.fb)
+            print(f"Framebuffer {args.fb}: {width}x{height}, {bpp} bits per pixel")
         else:
             tty_text_mode(args.tty)
     except Exception as e:
