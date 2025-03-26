@@ -32,6 +32,13 @@ def get_primary_color(
 
     # Get the most common color (primary color)
     red, green, blue = color_counts.most_common(1)[0][0]
+    total = red + green + blue
+
+    threshold_primary_color /= 100
+    threshold_primary_color *= total
+
+    threshold_other_colors /= 100
+    threshold_other_colors *= total
 
     color = None
     if (
@@ -89,8 +96,8 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--color", type=str, choices=["red", "green", "blue"], required=True)
     parser.add_argument("--device", type=str, required=True)
-    parser.add_argument("--threshold-primary-color", type=int, default=230)
-    parser.add_argument("--threshold-other-colors", type=int, default=50)
+    parser.add_argument("--threshold-primary-color", type=int, default=90)
+    parser.add_argument("--threshold-other-colors", type=int, default=10)
 
     args = parser.parse_args()
 
